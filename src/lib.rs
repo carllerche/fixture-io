@@ -25,6 +25,7 @@ pub struct FixtureIo {
     read_wait: Option<Task>,
 }
 
+#[derive(Debug)]
 enum Action {
     Read(Vec<u8>),
     Write(Vec<u8>),
@@ -271,6 +272,15 @@ impl State {
             State::Reading(..) => true,
             _ => false,
         }
+    }
+}
+
+impl fmt::Debug for FixtureIo {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("FixtureIo")
+            .field("state", &self.state)
+            .field("actions", &self.actions)
+            .finish()
     }
 }
 
