@@ -11,6 +11,7 @@ use std::{cmp, fmt, io};
 use std::collections::VecDeque;
 use std::path::Path;
 use std::time::Duration;
+use std::sync::mpsc;
 
 use futures::{Future, Async};
 use futures::task::{self, Task};
@@ -23,6 +24,8 @@ pub struct FixtureIo {
     actions: VecDeque<Action>,
     timer: Timer,
     read_wait: Option<Task>,
+    drop_tx: mpsc::Sender<()>,
+    drop_rx: Option<mpsc::Receiver<()>>,
 }
 
 #[derive(Debug)]
@@ -41,11 +44,15 @@ enum State {
 impl FixtureIo {
     /// Returns a new `FixtureIo` that expects and returns nothing
     pub fn empty() -> FixtureIo {
+        let (tx, rx) = mpsc::channel();
+
         FixtureIo {
             state: None,
             actions: VecDeque::new(),
             timer: Timer::default(),
             read_wait: None,
+            drop_tx: tx,
+            drop_rx: Some(rx),
         }
     }
 
@@ -74,6 +81,10 @@ impl FixtureIo {
         }
 
         Ok(ret)
+    }
+
+    pub fn receiver(&mut self) -> mpsc::Receiver<()> {
+        self.drop_rx.take().unwrap()
     }
 
     pub fn then_read<T: Into<Vec<u8>>>(mut self, data: T) -> Self {
@@ -263,6 +274,12 @@ impl Io for FixtureIo {
     fn poll_write(&mut self) -> Async<()> {
         // TODO: This should not always be true
         Async::NotReady
+    }
+}
+
+impl Drop for FixtureIo {
+    fn drop(&mut self) {
+        let _ = self.drop_tx.send(());
     }
 }
 
