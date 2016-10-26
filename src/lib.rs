@@ -184,7 +184,8 @@ impl io::Read for FixtureIo {
 
         let n = match self.state() {
             Some(&mut State::Reading(ref mut buf)) => {
-                let n = buf.copy_to(dst);
+                let n = cmp::min(dst.len(), buf.remaining());
+                buf.copy_to(&mut dst[..n]);
                 trace!("   --> actual={:?}", n);
                 n
             }
